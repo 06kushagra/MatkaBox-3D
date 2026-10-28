@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#17201d" />
+  <meta name="description" content="An interactive 3D model of MatkaBox — a traditional terracotta meal pot with a kraft-paper seal." />
+  <title>MatkaBox — 3D Model</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f3ead9;
+      background:
+        radial-gradient(ellipse at 66% 42%, rgba(96, 91, 66, .26), transparent 34%),
+        radial-gradient(ellipse at 48% 110%, rgba(111, 73, 49, .18), transparent 42%),
+        linear-gradient(135deg, #202b27 0%, #17201d 54%, #111916 100%);
+    }
+    #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+    .brand {
+      position: fixed; z-index: 2; left: clamp(22px, 5vw, 72px); top: clamp(22px, 5vh, 58px);
+      pointer-events: none; max-width: min(420px, 65vw);
+    }
+    .eyebrow {
+      margin: 0 0 13px; color: #c7ae83; font-size: 10px; line-height: 1.5;
+      letter-spacing: .23em; font-weight: 650; text-transform: uppercase;
+    }
+    h1 {
+      margin: 0; color: #f4ead8; font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(36px, 5vw, 64px); font-weight: 500; letter-spacing: -.055em; line-height: .98;
+    }
+    h1 span { color: #c98e59; }
+    .subline { margin: 15px 0 0; color: #b8b7a9; font-size: 12px; letter-spacing: .025em; line-height: 1.65; }
+    .corner-note {
+      position: fixed; z-index: 2; right: clamp(20px, 4.5vw, 64px); top: clamp(26px, 5.4vh, 62px);
+      color: #8e9a8f; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; text-align: right;
+      pointer-events: none;
+    }
+    .hint {
+      position: fixed; z-index: 2; left: 50%; bottom: clamp(18px, 4vh, 36px); transform: translateX(-50%);
+      color: rgba(232, 223, 202, .64); font-size: 9px; letter-spacing: .2em; text-transform: uppercase;
+      white-space: nowrap; pointer-events: none;
+    }
+    .rule { display: inline-block; width: 27px; height: 1px; margin: 0 10px 3px 0; background: #c18a55; }
+    @media (max-width: 600px) {
+      .brand { top: 23px; left: 22px; max-width: 76vw; }
+      .eyebrow { max-width: 250px; font-size: 8px; letter-spacing: .16em; margin-bottom: 9px; }
+      h1 { font-size: 39px; }
+      .subline { margin-top: 9px; max-width: 240px; font-size: 10px; }
+      .corner-note { top: 26px; right: 18px; font-size: 7px; letter-spacing: .13em; }
+      .hint { bottom: 18px; font-size: 8px; letter-spacing: .13em; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <canvas id="scene" aria-label="Interactive 3D MatkaBox model. Drag to rotate and scroll to zoom."></canvas>
+  <header class="brand">
+    <p class="eyebrow">Traditional Indian meal packaging</p>
+    <h1>Matka<span>Box</span></h1>
+    <p class="subline">Earth-fired terracotta. A simple, natural seal.<br />Built around the tradition of the matka.</p>
+  </header>
+  <div class="corner-note">Product study <span style="color:#c18a55">/</span> 3D</div>
+  <div class="hint"><span class="rule"></span>Drag to rotate&nbsp;&nbsp;·&nbsp;&nbsp;Scroll to zoom</div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
+
+    const canvas = document.querySelector('#scene');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#1a2420');
+    const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 100);
+    const target = new THREE.Vector3(0, 0.92, 0);
+    camera.position.set(1.85, 2.92, 4.55);
+    camera.lookAt(target);
+
+    // Soft studio lighting keeps the clay warm and reveals the rounded silhouette.
+    scene.add(new THREE.HemisphereLight(0xffead1, 0x383d34, 2.0));
+    const keyLight = new THREE.DirectionalLight(0xffd5a2, 3.0);
+    keyLight.position.set(-3.5, 6.0, 4.5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.left = -4;
+    keyLight.shadow.camera.right = 4;
+    keyLight.shadow.camera.top = 5;
+    keyLight.shadow.camera.bottom = -3;
+    keyLight.shadow.bias = -0.0003;
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xd5dfd1, 1.25);
+    fillLight.position.set(4, 3.5, -3.5);
+    scene.add(fillLight);
+    const rimLight = new THREE.PointLight(0xc77d4f, 18, 10, 2);
+    rimLight.position.set(-3, 2.4, -2.3);
+    scene.add(rimLight);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(200, 200),
+      new THREE.MeshStandardMaterial({ color: '#1a2420', roughness: 0.94, metalness: 0 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0.025;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Small deterministic pseudo-random helper for the procedural paper/clay textures.
+    let seed = 281028;
+    function rand() {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    }
+
+    function makeClayTexture() {
+      const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+      const g = c.getContext('2d');
+      const grad = g.createLinearGradient(0, 0, 0, c.height);
+      grad.addColorStop(0, '#b56d4d'); grad.addColorStop(.42, '#b96e4c');
+      grad.addColorStop(.78, '#a95f42'); grad.addColorStop(1, '#98563d');
+      g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
+      // Fine kiln specks and soft horizontal hand-thrown marks.
+      for (let i = 0; i < 17000; i++) {
+        const x = rand() * c.width, y = rand() * c.height;
+        const r = .3 + rand() * 1.5;
+        g.fillStyle = rand() > .52 ? `rgba(74,42,28,${.025 + rand() * .10})` : `rgba(255,210,160,${.025 + rand() * .10})`;
+        g.beginPath(); g.ellipse(x, y, r * 1.8, r * .7, 0, 0, Math.PI * 2); g.fill();
+      }
+      for (let i = 0; i < 80; i++) {
+        const y = rand() * c.height;
+        g.strokeStyle = rand() > .5 ? 'rgba(95,49,31,.09)' : 'rgba(255,211,166,.07)';
+        g.lineWidth = .5 + rand() * 1.2;
+        g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(240, y - 4, 680, y + 4, c.width, y + (rand() - .5) * 8); g.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return tex;
+    }
+
+    function makePaperTexture(width = 2048, height = 512, color = '#d7bd8d') {
+      const c = document.createElement('canvas'); c.width = width; c.height = height;
+      const g = c.getContext('2d');
+      g.fillStyle = color; g.fillRect(0, 0, width, height);
+      for (let i = 0; i < 14000; i++) {
+        const x = rand() * width, y = rand() * height;
+        g.fillStyle = rand() > .48 ? `rgba(105,75,42,${.025 + rand() * .08})` : `rgba(255,250,224,${.04 + rand() * .10})`;
+        g.fillRect(x, y, .5 + rand() * 2.2, .4 + rand() * 1.3);
+      }
+      // Delicate fibrous strands in the kraft paper.
+      for (let i = 0; i < 370; i++) {
+        const x = rand() * width, y = rand() * height;
+        g.strokeStyle = `rgba(126,92,54,${.025 + rand() * .07})`;
+        g.lineWidth = .35 + rand() * .5;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + 4 + rand() * 28, y + (rand() - .5) * 2); g.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return { canvas: c, context: g, texture: tex };
+    }
+
+    const matka = new THREE.Group();
+    scene.add(matka);
+    // The model is turned so the printed front label faces the initial camera angle.
+    const cameraYaw = Math.atan2(camera.position.x, camera.position.z);
+    matka.rotation.y = cameraYaw - Math.PI;
+
+    const clayTexture = makeClayTexture();
+    const clayMaterial = new THREE.MeshStandardMaterial({
+      map: clayTexture, roughness: 0.91, metalness: 0,
+      bumpMap: clayTexture, bumpScale: 0.027
+    });
+
+    // One closed profile gives the pot its rounded outer body, thick lip, and hollow inside.
+    const profile = [
+      [0.00, 0.145], [0.23, 0.145], [0.45, 0.185], [0.63, 0.265],
+      [0.80, 0.405], [0.95, 0.625], [1.075, 0.865], [1.125, 1.075],
+      [1.095, 1.265], [1.015, 1.425], [0.985, 1.485], [1.015, 1.525],
+      [1.085, 1.55], [1.15, 1.525], [1.175, 1.475], [1.15, 1.365],
+      [1.175, 1.155], [1.17, 0.91], [1.085, 0.655], [0.925, 0.425],
+      [0.72, 0.245], [0.49, 0.145], [0.24, 0.105], [0.00, 0.105]
+    ].reverse().map(([r, y]) => new THREE.Vector2(r, y));
+    const potGeometry = new THREE.LatheGeometry(profile, 144);
+    potGeometry.computeVertexNormals();
+    const pot = new THREE.Mesh(potGeometry, clayMaterial);
+    pot.castShadow = true; pot.receiveShadow = true;
+    matka.add(pot);
+
+    // A restrained clay foot ring and a few faint throwing lines add scale and material detail.
+    const footRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.34, 0.018, 8, 72),
+      new THREE.MeshStandardMaterial({ color: '#965239', roughness: .95 })
+    );
+    footRing.rotation.x = Math.PI / 2; footRing.position.y = 0.13; footRing.scale.set(1, .87, 1);
+    footRing.castShadow = true; matka.add(footRing);
+    for (const [radius, y] of [[1.14, .82], [1.174, 1.00], [1.17, 1.20]]) {
+      const line = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, .006, 5, 144),
+        new THREE.MeshStandardMaterial({ color: '#99583e', roughness: .98 })
+      );
+      line.rotation.x = Math.PI / 2; line.position.y = y; line.scale.z = .98; matka.add(line);
+    }
+
+    // Printed kraft band that wraps the upper body; the text is a texture, not a flat UI overlay.
+    const bandArt = makePaperTexture(2048, 512, '#d9c093');
+    const bg = bandArt.context, bw = bandArt.canvas.width, bh = bandArt.canvas.height;
+    bg.strokeStyle = '#8b623b'; bg.lineWidth = 3;
+    bg.strokeRect(14, 16, bw - 28, bh - 32);
+    bg.strokeStyle = 'rgba(117,77,42,.55)'; bg.lineWidth = 1.4;
+    bg.strokeRect(22, 24, bw - 44, bh - 48);
+    function drawDiamondRow(y) {
+      bg.save(); bg.translate(0, y); bg.strokeStyle = '#8f633b'; bg.lineWidth = 2;
+      for (let x = 12; x < bw; x += 28) {
+        bg.beginPath(); bg.moveTo(x, 0); bg.lineTo(x + 7, 8); bg.lineTo(x + 14, 0); bg.lineTo(x + 7, -8); bg.closePath(); bg.stroke();
+        bg.beginPath(); bg.moveTo(x + 15, 0); bg.lineTo(x + 22, 6); bg.stroke();
+      }
+      bg.restore();
+    }
+    drawDiamondRow(53); drawDiamondRow(bh - 53);
+    bg.fillStyle = '#6b4b2e'; bg.textAlign = 'center'; bg.textBaseline = 'middle';
+    bg.font = '600 25px Arial, sans-serif'; bg.letterSpacing = '5px';
+    bg.fillText('SELF-HEATING REGIONAL INDIAN CUISINE', bw / 2, 132);
+    bg.font = '700 72px Georgia, serif'; bg.letterSpacing = '-1px';
+    bg.fillText('MatkaBox', bw / 2, 254);
+    bg.font = '600 23px Arial, sans-serif'; bg.letterSpacing = '7px';
+    bg.fillText('TRADITION IN EVERY BITE', bw / 2, 318);
+    bg.font = '500 18px Arial, sans-serif'; bg.letterSpacing = '3px';
+    bg.fillText('CLAY POT MEAL  •  NATURAL PAPER SEAL', bw / 2, 372);
+    bandArt.texture.needsUpdate = true;
+    const band = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.15, 1.18, .52, 144, 1, true),
+      new THREE.MeshStandardMaterial({ map: bandArt.texture, roughness: .88, metalness: 0, side: THREE.DoubleSide })
+    );
+    band.position.y = 1.105;
+    band.rotation.y = 0; // texture center is already aligned by the group orientation
+    band.castShadow = true; band.receiveShadow = true;
+    matka.add(band);
+
+    // Pressed-paper lid: a shallow tapered sidewall, a soft folded edge, and printed top artwork.
+    const lidSideArt = makePaperTexture(1024, 512, '#d5b98a');
+    const sideMaterial = new THREE.MeshStandardMaterial({ map: lidSideArt.texture, roughness: .9, side: THREE.DoubleSide });
+    const lidSide = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.095, 1.15, .145, 144, 1, false),
+      [sideMaterial, new THREE.MeshStandardMaterial({ color: '#d8bd8e', roughness: .95 }), new THREE.MeshStandardMaterial({ color: '#c8a879', roughness: .95 })]
+    );
+    lidSide.position.y = 1.625;
+    lidSide.castShadow = true; lidSide.receiveShadow = true;
+    matka.add(lidSide);
+
+    const lidArt = makePaperTexture(1024, 1024, '#dfc99d');
+    const lg = lidArt.context, size = lidArt.canvas.width;
+    // Quiet radial paper creases around the perimeter.
+    lg.save(); lg.translate(size / 2, size / 2);
+    for (let i = 0; i < 72; i++) {
+      const a = i * Math.PI * 2 / 72;
+      lg.save(); lg.rotate(a);
+      lg.strokeStyle = `rgba(124,88,47,${.035 + rand() * .06})`;
+      lg.lineWidth = 1 + rand() * 1.2;
+      lg.beginPath(); lg.moveTo(0, -size * .34); lg.quadraticCurveTo(6, -size * .43, (rand() - .5) * 10, -size * .48); lg.stroke();
+      lg.restore();
+    }
+    lg.restore();
+    lg.strokeStyle = '#8b653c'; lg.lineWidth = 7; lg.beginPath(); lg.arc(size / 2, size / 2, size * .435, 0, Math.PI * 2); lg.stroke();
+    lg.strokeStyle = 'rgba(117,80,43,.65)'; lg.lineWidth = 2; lg.beginPath(); lg.arc(size / 2, size / 2, size * .415, 0, Math.PI * 2); lg.stroke();
+    lg.fillStyle = '#5b4229'; lg.textAlign = 'center'; lg.textBaseline = 'middle';
+    lg.font = '600 25px Arial, sans-serif'; lg.letterSpacing = '8px';
+    lg.fillText('MATKABOX  ·  REGIONAL KITCHEN', size / 2, size * .29);
+    lg.font = '700 50px Georgia, serif'; lg.letterSpacing = '2px';
+    lg.fillText('MALAI CLASSIC', size / 2, size * .405);
+    lg.font = '600 34px Georgia, serif'; lg.letterSpacing = '1px';
+    lg.fillText('GATTE KI SABZI', size / 2, size * .475);
+    lg.font = '500 28px Arial, sans-serif'; lg.letterSpacing = '7px';
+    lg.fillText('•  JEERA RICE  •', size / 2, size * .535);
+    lg.strokeStyle = '#987149'; lg.lineWidth = 2.5;
+    lg.beginPath(); lg.moveTo(size * .29, size * .59); lg.lineTo(size * .71, size * .59); lg.stroke();
+    lg.font = '500 20px Arial, sans-serif'; lg.letterSpacing = '6px';
+    lg.fillText('SEALED FRESH  ·  SERVED WARM', size / 2, size * .635);
+    // Turn the lid print so it reads toward the front viewing side.
+    // The symmetric border is unchanged; rotate the printed lettering for the front viewing side.
+    const rotatedLid = document.createElement('canvas'); rotatedLid.width = size; rotatedLid.height = size;
+    const rotatedCtx = rotatedLid.getContext('2d'); rotatedCtx.translate(size / 2, size / 2); rotatedCtx.rotate(Math.PI); rotatedCtx.drawImage(lidArt.canvas, -size / 2, -size / 2);
+    lg.restore();
+    lidArt.context.clearRect(0, 0, size, size); lidArt.context.drawImage(rotatedLid, 0, 0);
+    lidArt.texture.needsUpdate = true;
+    const lidTop = new THREE.Mesh(
+      new THREE.CircleGeometry(1.096, 144),
+      new THREE.MeshStandardMaterial({ map: lidArt.texture, roughness: .96, side: THREE.DoubleSide })
+    );
+    lidTop.rotation.x = -Math.PI / 2;
+    lidTop.position.y = 1.699;
+    lidTop.castShadow = false; lidTop.receiveShadow = true;
+    matka.add(lidTop);
+
+    const paperEdge = new THREE.Mesh(
+      new THREE.TorusGeometry(1.12, .021, 10, 144),
+      new THREE.MeshStandardMaterial({ color: '#c8a675', roughness: .93 })
+    );
+    paperEdge.rotation.x = Math.PI / 2;
+    paperEdge.position.y = 1.565;
+    paperEdge.castShadow = true; matka.add(paperEdge);
+
+
+    // Drag anywhere on the model to rotate; wheel/pinch-free scroll zooms. No buttons or menus.
+    let dragging = false, startX = 0, startY = 0, baseYaw = matka.rotation.y, baseTilt = matka.rotation.x;
+    canvas.addEventListener('pointerdown', (e) => {
+      dragging = true; startX = e.clientX; startY = e.clientY;
+      baseYaw = matka.rotation.y; baseTilt = matka.rotation.x;
+      canvas.setPointerCapture(e.pointerId);
+      canvas.style.cursor = 'grabbing';
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      matka.rotation.y = baseYaw + (e.clientX - startX) * .006;
+      matka.rotation.x = THREE.MathUtils.clamp(baseTilt + (e.clientY - startY) * .003, -.13, .18);
+    });
+    function endDrag() { dragging = false; canvas.style.cursor = 'grab'; }
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('lostpointercapture', endDrag);
+    canvas.style.cursor = 'grab';
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const offset = camera.position.clone().sub(target);
+      const nextLength = THREE.MathUtils.clamp(offset.length() * (e.deltaY > 0 ? 1.075 : .93), 3.6, 8.5);
+      offset.setLength(nextLength);
+      camera.position.copy(target).add(offset);
+      camera.lookAt(target);
+    }, { passive: false });
+
+    function resize() {
+      const w = window.innerWidth, h = window.innerHeight;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.fov = w < 600 ? 37 : 32;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    renderer.setAnimationLoop(() => {
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+</html>
